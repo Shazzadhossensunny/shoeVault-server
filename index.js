@@ -7,7 +7,10 @@ const port = process.env.PORT || 5000;
 
 // middleware
 const corsOptions = {
-  origin: ["http://localhost:5173"],
+  origin: [
+    "https://shoevault-681ba.web.app/",
+    "http://localhost:5173",
+  ],
   credentials: true,
   // optionSuccessStatus: 200,
 };
