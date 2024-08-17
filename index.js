@@ -5,9 +5,6 @@ const { MongoClient, ServerApiVersion } = require("mongodb");
 var cookieParser = require("cookie-parser");
 const port = process.env.PORT || 5000;
 
-// shoeVault
-// 1fjNCWdOWSN4eW3Q
-
 // middleware
 const corsOptions = {
   origin: ["http://localhost:5173"],
@@ -40,16 +37,44 @@ async function run() {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 6;
       const searchQuery = req.query.search ? req.query.search.trim() : "";
+      const brand = req.query.brand ? req.query.brand.trim() : "";
+      const category = req.query.category ? req.query.category.trim() : "";
+      const minPrice = parseFloat(req.query.minPrice) || 0;
+      const maxPrice = parseFloat(req.query.maxPrice) || Infinity;
+      const sortBy = req.query.sortBy || "dateAdded";
 
       const skip = (page - 1) * limit;
 
       // Normalize search query
       const normalizedQuery = searchQuery.replace(/\s+/g, "").toLowerCase();
 
-      // Create a filter for product name search
-      const filter = searchQuery
-        ? { productName: { $regex: normalizedQuery, $options: "i" } } // Case-insensitive search
-        : {};
+      // Create a filter
+      const filter = {
+        productName: { $regex: normalizedQuery, $options: "i" },
+        brand: brand ? brand : { $exists: true },
+        category: category ? category : { $exists: true },
+        price: { $gte: minPrice || 0, $lte: maxPrice || Infinity },
+      };
+
+      // Remove filters if not specified
+      for (let key in filter) {
+        if (filter[key] === "") {
+          delete filter[key];
+        }
+      }
+
+      // Define sorting
+      const sort = {};
+      if (sortBy === "priceAsc") {
+        sort.price = 1;
+      } else if (sortBy === "priceDesc") {
+        sort.price = -1;
+      } else if (sortBy === "dateAdded") {
+        sort.dateAdded = -1; // Newest first
+      }
+
+      console.log("Filter:", filter);
+      console.log("Sort:", sort);
 
       // Fetch total count of documents
       const total = await productsCollection.countDocuments(filter);
@@ -59,9 +84,10 @@ async function run() {
         .find(filter)
         .skip(skip)
         .limit(limit)
+        .sort(sort)
         .toArray();
 
-      // console.log('Search Result', result)
+      console.log("Search Result:", result);
 
       // Send paginated results along with pagination metadata
       res.send({
